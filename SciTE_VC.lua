@@ -6,7 +6,7 @@ setting = {
     spawner_path = "lua/spawner.dll",   -- Path to `spawner.dll`
     allow_destroy = true,               -- Option to make destroy command available
     tortoise = false,                   -- Option to run through Tortoise GUI dialogs instead console
-    dialog = true,                      -- Option to use SciTE strip wrapper dialog for commit massage (overrides OnStrip())
+    dialog = false,                     -- Option to use SciTE strip wrapper dialog for commit massage (overrides OnStrip())
     command_number = 30,                -- Free SciTE command number slot
 }
 
@@ -37,7 +37,7 @@ if setting.dialog then
             local msg = scite.StripValue(1)
             local vcs, cmd; vcs, cmd = scite.StripValue(0):match("(%w+):(%w+)")
             if msg:len() > 0 then
-                print(spawner.popen(("cd %q & %q %s %q -m %q && echo %s"):format(props['FileDir'], setting[vcs], VC.arg[vcs][cmd][1], props['FileNameExt'], msg, msg)):read("*a"))
+                print(spawner.popen(("cd /D %q & %q %s %q -m %q && echo %s"):format(props['FileDir'], setting[vcs], VC.arg[vcs][cmd][1], props['FileNameExt'], msg, msg)):read("*a"))
                 VC.update_status()
             end
             scite.StripShow("")
@@ -45,6 +45,7 @@ if setting.dialog then
     end
 end
 
+local ctrl = session.control
 VC = {
     arg = {
         Hg = {
@@ -71,7 +72,6 @@ VC = {
         }
     },
     init = function()
-        ctrl = session.control
         ctrl.hg = ctrl.hg or VC.check_path(setting['Hg'])
         ctrl.git = ctrl.git or VC.check_path(setting['Git'])
         if ctrl[props['FilePath']] then
@@ -93,7 +93,7 @@ VC = {
         end
     end,
     project = function(s)
-        return spawner.popen(('cd %q & %q %s %q'):format(props['FileDir'], setting[s], VC.arg[s]['Code'], props['FileNameExt'])):read('*a') .. 'C'
+        return spawner.popen(('cd /D %q & %q %s %q'):format(props['FileDir'], setting[s], VC.arg[s]['Code'], props['FileNameExt'])):read('*a') .. 'C'
     end,
     check_path = function(f)
         if VC.exist(f) then return true
@@ -139,22 +139,22 @@ VC = {
     init_repo = function(c)
         ctrl[props['FilePath']] = c:gsub(":Init", "")
         local exe = setting[c:gsub(":Init", "")]
-        print(spawner.popen(("cd %q & %q init && %q add %q && %q commit -m init"):format(props['FileDir'], exe, exe, props['FilePath'], exe)):read("*a"))
+        print(spawner.popen(("cd /D %q & %q init && %q add %q && %q commit -m init"):format(props['FileDir'], exe, exe, props['FilePath'], exe)):read("*a"))
         VC.ctrl_repo('Status')
         VC.update_status()
     end,
     ctrl_repo = function(c)
         local vcs, cmd; vcs, cmd = ctrl[props['FilePath']], c:gsub("(%a+:)", "")
         if c == vcs .. ":Destroy" then
-            local project_root = spawner.popen(('cd %q & %q %s'):format(props['FileDir'], setting[vcs], VC.arg[vcs]['Root'])):read('*a'):gsub('\n', '') .. '/.' .. vcs:lower()
+            local project_root = spawner.popen(('cd /D %q & %q %s'):format(props['FileDir'], setting[vcs], VC.arg[vcs]['Root'])):read('*a'):gsub('\n', '') .. '/.' .. vcs:lower()
             spawner.popen(('if exist %q rd /s /q %q'):format(project_root, project_root))
         else
             if setting.tortoise and VC.check_path(setting["Tortoise" .. vcs]) then
-                spawner.popen(("cd %q & %q %s%q"):format(props['FileDir'], setting["Tortoise" .. vcs], VC.arg[vcs][cmd][2], props['FileNameExt']))
+                spawner.popen(("cd /D %q & %q %s%q"):format(props['FileDir'], setting["Tortoise" .. vcs], VC.arg[vcs][cmd][2], props['FileNameExt']))
             else
                 scite.MenuCommand(IDM_CLEAROUTPUT)
-                if c == vcs .. ":Commit" and setting.dialog then VC.dialog(c) else
-                print(spawner.popen(("cd %q & %q %s %q"):format(props['FileDir'], setting[vcs], VC.arg[vcs][cmd][1], props['FileNameExt'])):read("*a")) end
+                if c == vcs .. ":Commit" then VC.dialog(c) else
+                print(spawner.popen(("cd /D %q & %q %s %q"):format(props['FileDir'], setting[vcs], VC.arg[vcs][cmd][1], props['FileNameExt'])):read("*a")) end
             end
         end
         VC.update_status()
